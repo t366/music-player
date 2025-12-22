@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # music-player
 
 # Web音乐播放器
@@ -74,7 +73,7 @@ music-player/
 ### 安装步骤
 1. 克隆项目代码：
 ```bash
-git clone <repository-url>
+git clone https://github.com/t366/music-player.git
 ```
 
 2. 安装后端依赖：
@@ -89,12 +88,12 @@ npm start
 ```
 
 4. 访问应用：
-打开浏览器访问 `http://localhost:3002`
+打开浏览器访问 `http://localhost:3000`
 
 ## 开发指南
 
 ### 项目配置
-- 端口配置：默认3002，可通过环境变量PORT修改
+- 端口配置：默认3000，可通过环境变量PORT修改
 - 文件上传限制：默认100MB，可通过MAX_FILE_SIZE修改
 - 清理间隔：默认24小时，可通过CLEANUP_INTERVAL修改
 
@@ -112,6 +111,3 @@ npm start
 
 ## 许可证
 MIT License
-=======
-# music-player
->>>>>>> 9e438cd789b7b0613fc36d5bdcecde5592e3047b
