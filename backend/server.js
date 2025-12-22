@@ -34,7 +34,7 @@ const CONFIG = {
   LOGS_DIR: path.resolve(__dirname, "logs"),
 
   // 服务器配置（新增）
-  PORT: parseInt(process.env.PORT) || 3000, // 从环境变量读取，默认3000
+  PORT: parseInt(process.env.PORT) || 3002, // 更新为3002从环境变量读取，默认3001
   HOST: process.env.HOST || "0.0.0.0", // 从环境变量读取，默认0.0.0.0
 
   AUTO_CLEANUP_INTERVAL: Math.max(
@@ -369,28 +369,6 @@ class WebSocketServer {
       case "subscribe":
       case "join_channel":
         this.handleSubscribe(ws, message);
-        break;
-      case "get_library":
-      case "get_music_library":
-        try {
-          // 获取音乐库数据
-          const library = await dbManager.getAllSongs();
-          this.sendToClient(ws, {
-            type: "library_data",
-            data: {
-              songs: library,
-              count: library.length,
-              timestamp: new Date().toISOString()
-            },
-            timestamp: new Date().toISOString()
-          });
-        } catch (error) {
-          this.sendToClient(ws, {
-            type: "error",
-            error: `获取音乐库失败: ${error.message}`,
-            timestamp: new Date().toISOString()
-          });
-        }
         break;
       case "music_play":
       case "music_pause":
@@ -844,16 +822,6 @@ app.use(
 app.use(express.static("public"));
 
 // ======================== API 路由 ========================
-// 添加健康检查端点
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// 处理Chrome DevTools的.well-known请求
-app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
-  res.status(200).json({}); // 返回空对象而不是404
-});
-
 // 找到 app.get('/api/music', ...) 并替换
 
 app.get("/api/music", async (req, res) => {
@@ -2461,7 +2429,7 @@ app.post("/api/music-source/import", async (req, res) => {
       }
 
       // 从URL获取音乐源内容
-      const axios = require("axios");
+      const fetch = require("node-fetch");
 
       // 重试机制配置
       const maxRetries = 3;
@@ -2486,14 +2454,13 @@ app.post("/api/music-source/import", async (req, res) => {
 
         try {
           // 构建请求选项
-          const axiosOptions = {
+          const fetchOptions = {
+            signal: controller.signal,
             timeout: 30000,
             headers: {
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             },
-            // 支持取消请求
-            signal: controller.signal,
           };
 
           // 尝试使用代理（如果有的话）
@@ -2505,8 +2472,7 @@ app.post("/api/music-source/import", async (req, res) => {
               fetchUrl = proxy + url;
             } else {
               // 常规代理
-              const { HttpsProxyAgent } = require("https-proxy-agent");
-              axiosOptions.httpsAgent = new HttpsProxyAgent(proxy);
+              fetchOptions.agent = new (require("https-proxy-agent"))(proxy);
             }
           }
 
@@ -2514,9 +2480,15 @@ app.post("/api/music-source/import", async (req, res) => {
             `尝试获取音乐源 (${currentRetry}/${maxRetries})${proxyIndex >= 0 ? ` 使用代理: ${proxyList[proxyIndex % proxyList.length]}` : ""}: ${fetchUrl}`,
           );
 
-          const response = await axios.get(fetchUrl, axiosOptions);
+          const response = await fetch(fetchUrl, fetchOptions);
 
-          content = response.data;
+          if (!response.ok) {
+            throw new Error(
+              `HTTP错误: ${response.status} ${response.statusText}`,
+            );
+          }
+
+          content = await response.text();
           success = true;
           logger.info(`成功获取音乐源内容，大小: ${content.length} 字符`);
         } catch (fetchError) {
@@ -2847,12 +2819,13 @@ app.post("/api/music-source/import", async (req, res) => {
 
 // ======================== 前端路由（关键修复） ========================
 // API 404 处理器
-app.use("/api/", (req, res) => {
+app.use("/api/*", (req, res) => {
   res.status(404).json({
     error: "接口不存在",
     message: `请求的 API 接口 ${req.originalUrl} 不存在`,
   });
 });
+
 // 前端路由 - 所有非API请求返回index.html
 // app.get('*', (req, res) => {
 
@@ -2886,99 +2859,6 @@ app.use("/api/", (req, res) => {
 //         }
 //     });
 // });
-
-// 健康检查端点
-app.get('/api/health', async (req, res) => {
-  try {
-    const healthStatus = {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      version: process.version,
-      services: {
-        database: 'unknown',
-        websocket: wsServer ? 'running' : 'stopped',
-        fileSystem: 'unknown'
-      }
-    };
-    
-    // 检查数据库状态
-    try {
-      await dbManager.getDbStats();
-      healthStatus.services.database = 'connected';
-    } catch (dbError) {
-      healthStatus.services.database = 'error';
-      healthStatus.status = 'degraded';
-    }
-    
-    // 检查文件系统
-    try {
-      await fs.access(CONFIG.MUSIC_DIR);
-      await fs.access(CONFIG.DATA_DIR);
-      healthStatus.services.fileSystem = 'accessible';
-    } catch (fsError) {
-      healthStatus.services.fileSystem = 'inaccessible';
-      healthStatus.status = 'degraded';
-    }
-    
-    const statusCode = healthStatus.status === 'ok' ? 200 : 503;
-    res.status(statusCode).json(healthStatus);
-  } catch (error) {
-    logger.error('健康检查失败:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Health check failed',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// 错误处理中间件
-app.use((error, req, res, next) => {
-  // 记录详细错误信息
-  const errorInfo = {
-    message: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
-  };
-  
-  logger.error("服务器错误:", errorInfo);
-  
-  // 错误恢复策略
-  if (error.code === 'ENOENT') {
-    // 文件不存在错误
-    res.status(404).json({ error: "文件不存在" });
-  } else if (error.code === 'EACCES' || error.code === 'EPERM') {
-    // 权限错误
-    res.status(403).json({ error: "权限不足" });
-  } else if (error.code === 'ENOSPC') {
-    // 磁盘空间不足
-    res.status(507).json({ error: "磁盘空间不足" });
-  } else if (error.name === 'ValidationError') {
-    // 数据验证错误
-    res.status(400).json({ error: error.message });
-  } else if (error.name === 'UnauthorizedError') {
-    // 认证错误
-    res.status(401).json({ error: "未授权访问" });
-  } else {
-    // 其他错误
-    res.status(500).json({ 
-      error: config.NODE_ENV === 'development' ? error.message : "服务器内部错误",
-      ...(config.NODE_ENV === 'development' && { stack: error.stack })
-    });
-  }
-});
-
-// 404处理中间件
-app.use('*', (req, res) => {
-  logger.warn(`404未找到: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ error: "请求的资源不存在" });
-});
 
 // 前端路由 - 智能处理静态文件与前端路由
 app.get("*", (req, res) => {
@@ -4557,52 +4437,6 @@ class MetadataService {
 
 const metadataService = new MetadataService();
 
-// 错误处理中间件
-app.use((error, req, res, next) => {
-  // 记录详细错误信息
-  const errorInfo = {
-    message: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
-  };
-  
-  logger.error("服务器错误:", errorInfo);
-  
-  // 错误恢复策略
-  if (error.code === 'ENOENT') {
-    // 文件不存在错误
-    res.status(404).json({ error: "文件不存在" });
-  } else if (error.code === 'EACCES' || error.code === 'EPERM') {
-    // 权限错误
-    res.status(403).json({ error: "权限不足" });
-  } else if (error.code === 'ENOSPC') {
-    // 磁盘空间不足
-    res.status(507).json({ error: "磁盘空间不足" });
-  } else if (error.name === 'ValidationError') {
-    // 数据验证错误
-    res.status(400).json({ error: error.message });
-  } else if (error.name === 'UnauthorizedError') {
-    // 认证错误
-    res.status(401).json({ error: "未授权访问" });
-  } else {
-    // 其他错误
-    res.status(500).json({ 
-      error: config.NODE_ENV === 'development' ? error.message : "服务器内部错误",
-      ...(config.NODE_ENV === 'development' && { stack: error.stack })
-    });
-  }
-});
-
-// 404处理中间件
-app.use('*', (req, res) => {
-  logger.warn(`404未找到: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({ error: "请求的资源不存在" });
-});
-
 // ======================== 启动服务器 ========================
 async function startServer() {
   try {
@@ -4655,34 +4489,12 @@ async function startServer() {
       // 停止定时任务
       if (global.cleanupIntervalId) {
         clearInterval(global.cleanupIntervalId);
-        logger.info("定时任务已停止");
       }
-
-      // 计算已关闭的服务数量
-      let closedServices = 0;
-      const totalServices = 2; // WebSocket + HTTP
-
-      // 检查是否所有服务都已关闭
-      const checkAllClosed = () => {
-        closedServices++;
-        if (closedServices >= totalServices) {
-          logger.info("所有服务已关闭");
-          process.exit(0);
-        }
-      };
 
       // 关闭WebSocket服务器
-      try {
-        wsServer.close(() => {
-          logger.info("WebSocket服务器已关闭");
-          checkAllClosed();
-        });
-      } catch (error) {
-        logger.error("关闭WebSocket服务器失败:", error);
-        checkAllClosed();
-      }
+      wsServer.close();
 
-      // 关闭数据库连接（better-sqlite3是同步的）
+      // 关闭数据库连接
       try {
         if (dbManager) {
           logger.debug("正在关闭数据库连接...");
@@ -4694,25 +4506,16 @@ async function startServer() {
       }
 
       // 关闭HTTP服务器
-      try {
-        httpServer.close((err) => {
-          if (err) {
-            logger.error("关闭HTTP服务器时出错:", err);
-          } else {
-            logger.info("HTTP服务器已关闭");
-          }
-          checkAllClosed();
-        });
-      } catch (error) {
-        logger.error("关闭HTTP服务器失败:", error);
-        checkAllClosed();
-      }
+      httpServer.close(() => {
+        logger.info("服务器已关闭");
+        process.exit(0);
+      });
 
-      // 超时强制关闭（增加超时时间）
+      // 超时强制关闭
       setTimeout(() => {
-        logger.error("服务器关闭超时，强制关闭");
+        logger.error("强制关闭服务器");
         process.exit(1);
-      }, 15000);
+      }, 10000);
     };
 
     process.on("SIGTERM", shutdown);
