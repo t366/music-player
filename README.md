@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# music-player
+
 # Web音乐播放器
 
 一个功能完整的Web版音乐播放器，仿网易云音乐设计，支持本地音乐上传、元数据提取、封面获取和歌词显示。
@@ -109,3 +112,6 @@ npm start
 
 ## 许可证
 MIT License
+=======
+# music-player
+>>>>>>> 9e438cd789b7b0613fc36d5bdcecde5592e3047b
