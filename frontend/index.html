@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>云音乐 - Web版播放器</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"
+    />
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+  </head>
+
+  <body>
+    <!-- 添加网络状态指示器 -->
+    <div class="network-status" id="networkStatus"></div>
+
+    <!-- 添加加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-spinner-large"></div>
+      <div class="loading-text" id="loadingText">正在加载...</div>
+    </div>
+
+    <!-- 错误弹窗 -->
+    <div class="error-overlay" id="errorOverlay">
+      <div class="error-modal">
+        <div class="error-title">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="errorTitle">发生错误</span>
+        </div>
+        <div class="error-message" id="errorMessage"></div>
+        <div class="error-actions">
+          <button class="page-button" id="errorCloseBtn">关闭</button>
+          <button class="page-button primary" id="errorRetryBtn">重试</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-container">
+      <!-- 侧边栏 -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <div class="logo-icon">
+              <i class="fas fa-cloud-music"></i>
+            </div>
+            <div class="logo-text">云音乐</div>
+          </div>
+        </div>
+
+        <div class="sidebar-nav">
+          <div class="nav-section">
+            <div class="nav-section-title">发现</div>
+            <a href="#" class="nav-item active" data-page="home">
+              <div class="nav-icon">
+                <i class="fas fa-home"></i>
+              </div>
+              <div class="nav-text">首页</div>
+            </a>
+            <a href="#" class="nav-item" data-page="daily">
+              <div class="nav-icon">
+                <i class="fas fa-calendar-day"></i>
+              </div>
+              <div class="nav-text">每日推荐</div>
+              <div class="nav-badge" id="dailyBadge">30</div>
+            </a>
+            <a href="#" class="nav-item" data-page="discover">
+              <div class="nav-icon">
+                <i class="fas fa-compass"></i>
+              </div>
+              <div class="nav-text">发现音乐</div>
+            </a>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-section-title">我的音乐</div>
+            <a href="#" class="nav-item" data-page="library">
+              <div class="nav-icon">
+                <i class="fas fa-music"></i>
+              </div>
+              <div class="nav-text">音乐库</div>
+              <div class="nav-badge" id="libraryBadge">0</div>
+            </a>
+            <a href="#" class="nav-item" data-page="favorites">
+              <div class="nav-icon">
+                <i class="fas fa-heart"></i>
+              </div>
+              <div class="nav-text">我喜欢的音乐</div>
+            </a>
+            <a href="#" class="nav-item" data-page="history">
+              <div class="nav-icon">
+                <i class="fas fa-history"></i>
+              </div>
+              <div class="nav-text">播放历史</div>
+            </a>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-section-title">工具</div>
+            <a href="#" class="nav-item" data-page="upload">
+              <div class="nav-icon">
+                <i class="fas fa-upload"></i>
+              </div>
+              <div class="nav-text">上传音乐</div>
+            </a>
+            <a href="#" class="nav-item" data-page="settings">
+              <div class="nav-icon">
+                <i class="fas fa-cog"></i>
+              </div>
+              <div class="nav-text">设置</div>
+            </a>
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="theme-switch" id="themeSwitch">
+            <div class="theme-switch-text">
+              <div class="theme-icon">
+                <i class="fas fa-moon" id="themeIcon"></i>
+              </div>
+              <div>暗色模式</div>
+            </div>
+            <label class="theme-switch-control">
+              <input
+                type="checkbox"
+                class="theme-switch-checkbox"
+                id="themeToggle"
+              />
+              <span class="theme-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主内容区域 -->
+      <div class="main-content">
+        <!-- 顶部栏 -->
+        <div class="top-bar">
+          <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-bars"></i>
+          </button>
+
+          <div class="nav-buttons">
+            <button class="nav-button" id="backButton">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="nav-button" id="forwardButton">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+
+          <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              class="search-box"
+              id="searchInput"
+              placeholder="搜索音乐、歌手、专辑"
+            />
+          </div>
+
+          <div class="user-actions">
+            <button
+              class="user-action-button"
+              id="uploadButton"
+              title="上传音乐"
+            >
+              <i class="fas fa-upload"></i>
+            </button>
+            <button
+              class="user-action-button"
+              id="notificationButton"
+              title="通知"
+            >
+              <i class="fas fa-bell"></i>
+              <div class="user-action-button-badge hidden">3</div>
+            </button>
+            <button class="user-action-button" id="lyricsButton" title="歌词">
+              <i class="fas fa-microphone-alt"></i>
+              <div class="user-action-button-badge hidden" id="lyricsBadge">
+                !
+              </div>
+            </button>
+            <button class="user-action-button" id="settingsButton" title="播放设置">
+              <i class="fas fa-cog"></i>
+            </button>
+            <div class="user-avatar" id="userAvatar">
+              <span>用户</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content-area" id="contentArea">
+          <!-- 首页 -->
+          <div class="page active" id="homePage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-home page-title-icon"></i>
+                首页
+              </h1>
+              <p class="page-subtitle">发现最新最热的音乐</p>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-icon">
+                  <i class="fas fa-music"></i>
+                </div>
+                <div class="stat-value" id="totalSongs">0</div>
+                <div class="stat-label">总歌曲数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">
+                  <i class="fas fa-user"></i>
+                </div>
+                <div class="stat-value" id="totalArtists">0</div>
+                <div class="stat-label">歌手数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">
+                  <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-value" id="totalDuration">0</div>
+                <div class="stat-label">总时长(分钟)</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">
+                  <i class="fas fa-calendar-day"></i>
+                </div>
+                <div class="stat-value" id="todayRecommend">0</div>
+                <div class="stat-label">今日推荐</div>
+              </div>
+            </div>
+
+            <div class="page-actions">
+              <button class="page-button primary" id="quickUpload">
+                <i class="fas fa-plus"></i>
+                添加音乐
+              </button>
+              <button class="page-button" id="refreshLibrary">
+                <i class="fas fa-redo"></i>
+                刷新音乐库
+              </button>
+            </div>
+
+            <h2
+              class="page-title"
+              style="font-size: 1.5rem; margin-bottom: 20px"
+            >
+              <i class="fas fa-fire text-primary"></i>
+              热门推荐
+            </h2>
+
+            <div class="music-grid" id="featuredGrid">
+              <!-- 热门推荐内容动态加载 -->
+            </div>
+
+            <h2
+              class="page-title"
+              style="font-size: 1.5rem; margin-bottom: 20px"
+            >
+              <i class="fas fa-history"></i>
+              最近播放
+            </h2>
+
+            <div class="music-grid" id="recentGrid">
+              <!-- 最近播放内容动态加载 -->
+            </div>
+          </div>
+
+          <!-- 每日推荐页面 -->
+          <div class="page" id="dailyPage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-calendar-day page-title-icon"></i>
+                每日推荐
+              </h1>
+              <p class="page-subtitle">根据您的听歌习惯生成个性化推荐</p>
+            </div>
+
+            <div class="page-actions">
+              <button class="page-button primary" id="refreshRecommendations">
+                <i class="fas fa-redo"></i>
+                换一批
+              </button>
+              <button class="page-button" id="dailyStats">
+                <i class="fas fa-chart-bar"></i>
+                推荐统计
+              </button>
+            </div>
+
+            <div class="music-grid" id="dailyGrid">
+              <!-- 每日推荐内容动态加载 -->
+            </div>
+          </div>
+
+          <!-- 音乐库页面 -->
+          <div class="page" id="libraryPage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-music page-title-icon"></i>
+                音乐库
+              </h1>
+              <p class="page-subtitle">管理您的本地音乐收藏</p>
+            </div>
+
+            <div class="page-actions">
+              <button class="page-button primary" id="addToLibrary">
+                <i class="fas fa-plus"></i>
+                添加音乐
+              </button>
+              <button class="page-button" id="scanLibrary">
+                <i class="fas fa-search"></i>
+                扫描音乐
+              </button>
+              <button class="page-button" id="sortLibrary">
+                <i class="fas fa-sort-amount-down"></i>
+                排序
+              </button>
+            </div>
+
+            <div class="music-grid" id="libraryGrid">
+              <!-- 音乐库内容动态加载 -->
+            </div>
+
+            <div class="empty-state" id="libraryEmpty">
+              <div class="empty-state-icon">
+                <i class="fas fa-music"></i>
+              </div>
+              <h3 class="empty-state-title">音乐库是空的</h3>
+              <p class="empty-state-description">
+                您还没有添加任何音乐到库中，点击"添加音乐"按钮开始上传您的音乐文件。
+              </p>
+              <button class="upload-button" id="libraryUploadButton">
+                <i class="fas fa-upload"></i>
+                上传音乐
+              </button>
+            </div>
+          </div>
+
+          <!-- 上传页面 -->
+          <div class="page" id="uploadPage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-upload page-title-icon"></i>
+                上传音乐
+              </h1>
+              <p class="page-subtitle">添加您的音乐文件到播放器</p>
+            </div>
+
+            <div class="upload-area" id="uploadDropArea">
+              <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+              </div>
+              <div class="upload-text">
+                <h3>拖放文件到此处上传</h3>
+                <p>
+                  支持 MP3, WAV, FLAC, AAC, OGG, M4A 格式，最大文件大小 50MB
+                </p>
+              </div>
+              <button class="upload-button" id="selectFilesButton">
+                <i class="fas fa-folder-open"></i>
+                选择文件
+              </button>
+            </div>
+
+            <div class="upload-queue" id="uploadQueue">
+              <div class="upload-queue-header-main">
+                <div class="upload-queue-title">
+                  <i class="fas fa-list-ul"></i>
+                  上传队列
+                </div>
+                <div class="upload-queue-subtitle">管理您要上传的音乐文件</div>
+              </div>
+              <div class="upload-queue-header-actions">
+                <div class="queue-stats">
+                  <span class="queue-count" id="queueCount">0 个文件</span>
+                  <span class="queue-size" id="queueSize">0 MB</span>
+                </div>
+                <button class="upload-queue-clear" id="clearQueue">
+                  <i class="fas fa-trash-alt"></i>
+                  <span class="clear-btn-text">清空队列</span>
+                </button>
+              </div>
+
+              <div class="upload-queue-list" id="uploadQueueList">
+                <!-- 上传队列内容动态加载 -->
+              </div>
+
+              <div class="upload-queue-footer">
+                <button class="upload-button" id="startUploadButton">
+                  <i class="fas fa-play"></i>
+                  开始上传 (<span id="queueReadyCount">0</span>/<span
+                    id="queueTotalCount"
+                    >0</span
+                  >)
+                </button>
+                <div class="upload-hint">
+                  <i class="fas fa-info-circle"></i>
+                  一次最多上传 20 个文件，总大小不超过 100MB
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 我喜欢的音乐页面 -->
+          <div class="page" id="favoritesPage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-heart page-title-icon"></i>
+                我喜欢的音乐
+              </h1>
+              <p class="page-subtitle">您收藏的音乐列表</p>
+            </div>
+
+            <div class="music-grid" id="favoritesGrid">
+              <!-- 喜欢的音乐内容动态加载 -->
+            </div>
+
+            <div class="empty-state" id="favoritesEmpty">
+              <div class="empty-state-icon">
+                <i class="fas fa-heart"></i>
+              </div>
+              <h3 class="empty-state-title">还没有喜欢的音乐</h3>
+              <p class="empty-state-description">
+                在播放音乐时点击心形按钮，将音乐添加到喜欢列表。
+              </p>
+            </div>
+          </div>
+
+          <!-- 设置页面 -->
+          <div class="page" id="settingsPage">
+            <div class="page-header">
+              <h1 class="page-title">
+                <i class="fas fa-cog page-title-icon"></i>
+                设置
+              </h1>
+              <p class="page-subtitle">自定义您的播放器体验</p>
+            </div>
+
+            <div class="stat-card" style="margin-bottom: 24px">
+              <h3 style="margin-bottom: 20px; font-size: 1.2rem">播放设置</h3>
+              <div style="display: flex; flex-direction: column; gap: 16px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <div>
+                    <div style="font-weight: 500">自动播放下一首</div>
+                    <div
+                      style="font-size: 0.9rem; color: var(--text-secondary)"
+                    >
+                      播放完成后自动播放下一首音乐
+                    </div>
+                  </div>
+                  <label class="theme-switch-control">
+                    <input
+                      type="checkbox"
+                      class="theme-switch-checkbox"
+                      id="autoPlayToggle"
+                      checked
+                    />
+                    <span class="theme-slider"></span>
+                  </label>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <div>
+                    <div style="font-weight: 500">高质量音频</div>
+                    <div
+                      style="font-size: 0.9rem; color: var(--text-secondary)"
+                    >
+                      启用高比特率音频播放
+                    </div>
+                  </div>
+                  <label class="theme-switch-control">
+                    <input
+                      type="checkbox"
+                      class="theme-switch-checkbox"
+                      id="highQualityToggle"
+                    />
+                    <span class="theme-slider"></span>
+                  </label>
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <div>
+                    <div style="font-weight: 500">显示歌词面板</div>
+                    <div
+                      style="font-size: 0.9rem; color: var(--text-secondary)"
+                    >
+                      在播放时显示同步歌词面板
+                    </div>
+                  </div>
+                  <label class="theme-switch-control">
+                    <input
+                      type="checkbox"
+                      class="theme-switch-checkbox"
+                      id="showLyricsToggle"
+                      checked
+                    />
+                    <span class="theme-slider"></span>
+                  </label>
+                </div>
+                <!-- 新增：播放器歌词开关 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
+                  <div>
+                    <div style="font-weight: 500">播放器歌词</div>
+                    <div
+                      style="font-size: 0.9rem; color: var(--text-secondary)"
+                    >
+                      在底部播放器直接显示歌词
+                    </div>
+                  </div>
+                  <label class="theme-switch-control">
+                    <input
+                      type="checkbox"
+                      class="theme-switch-checkbox"
+                      id="playerLyricsToggleSetting"
+                      checked
+                    />
+                    <span class="theme-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <h3 style="margin-bottom: 20px; font-size: 1.2rem">音乐源管理</h3>
+              <div style="display: flex; flex-direction: column; gap: 16px">
+                <div class="music-source-section">
+                  <h4 style="margin-bottom: 12px; font-size: 1rem">在线导入</h4>
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px">
+                    <input
+                      type="text"
+                      id="musicSourceUrl"
+                      placeholder="输入音乐源URL"
+                      style="
+                        flex: 1;
+                        padding: 8px 12px;
+                        border: 1px solid var(--border-color);
+                        border-radius: 4px;
+                        background-color: var(--background-secondary);
+                        color: var(--text-primary);
+                      "
+                    />
+                    <button class="page-button primary" id="importSourceBtn">
+                      <i class="fas fa-download"></i>
+                      导入
+                    </button>
+                  </div>
+                  <div
+                    class="progress-indicator"
+                    id="importProgress"
+                    style="display: none; margin-top: 8px"
+                  >
+                    <div
+                      class="progress-bar"
+                      style="
+                        height: 4px;
+                        background-color: var(--border-color);
+                        border-radius: 2px;
+                        overflow: hidden;
+                      "
+                    >
+                      <div
+                        class="progress-fill"
+                        style="
+                          height: 100%;
+                          background-color: var(--primary-color);
+                          width: 0%;
+                          transition: width 0.3s ease;
+                        "
+                      ></div>
+                    </div>
+                    <div
+                      class="progress-text"
+                      style="
+                        font-size: 0.8rem;
+                        color: var(--text-secondary);
+                        margin-top: 4px;
+                      "
+                    >
+                      正在导入...
+                    </div>
+                  </div>
+                </div>
+
+                <div class="music-source-section">
+                  <h4 style="margin-bottom: 12px; font-size: 1rem">本地上传</h4>
+                  <div
+                    class="upload-area"
+                    id="sourceUploadArea"
+                    style="
+                      border: 2px dashed var(--border-color);
+                      border-radius: 8px;
+                      padding: 20px;
+                      text-align: center;
+                      cursor: pointer;
+                      transition: all 0.3s ease;
+                    "
+                  >
+                    <div
+                      class="upload-icon"
+                      style="
+                        font-size: 2rem;
+                        color: var(--text-secondary);
+                        margin-bottom: 8px;
+                      "
+                    >
+                      <i class="fas fa-file-upload"></i>
+                    </div>
+                    <div class="upload-text">
+                      <h4 style="margin-bottom: 4px">
+                        拖放文件到此处或点击上传
+                      </h4>
+                      <p
+                        style="font-size: 0.9rem; color: var(--text-secondary)"
+                      >
+                        支持 .js 格式的音乐源文件，最大 5MB
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      id="sourceFileInput"
+                      accept=".js"
+                      style="display: none"
+                    />
+                  </div>
+                </div>
+
+                <div class="music-source-section">
+                  <h4 style="margin-bottom: 12px; font-size: 1rem">
+                    已添加的音乐源
+                  </h4>
+                  <div class="music-source-list" id="musicSourceList">
+                    <!-- 音乐源列表将通过JavaScript动态生成 -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <h3 style="margin-bottom: 20px; font-size: 1.2rem">关于</h3>
+              <div style="line-height: 1.8">
+                <p><strong>云音乐 Web 版</strong> v2.0.0</p>
+                <p style="color: var(--text-secondary); margin-bottom: 16px">
+                  一个功能完整的在线音乐播放器
+                </p>
+                <div style="display: flex; gap: 12px; margin-top: 20px">
+                  <div class="page-button" style="padding: 8px 16px">
+                    <i class="fas fa-code"></i>
+                    开发者工具
+                  </div>
+                  <div class="page-button" style="padding: 8px 16px">
+                    <i class="fas fa-question-circle"></i>
+                    帮助
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 在 content-area 中，在 settingsPage 之后添加 -->
+          <!-- 发现音乐页面 -->
+          <div class="page" id="discoverPage">
+            <!-- 内容将通过 JavaScript 动态加载 -->
+          </div>
+
+          <!-- 播放历史页面 -->
+          <div class="page" id="historyPage">
+            <!-- 内容将通过 JavaScript 动态加载 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 播放器 - 固定在底部 -->
+      <div class="player-bar">
+        <div class="player-now-playing">
+          <div class="player-cover" id="playerCover">
+            <i
+              class="fas fa-music"
+              style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 1.5rem;
+                color: var(--text-tertiary);
+              "
+            ></i>
+          </div>
+          <div class="player-info">
+            <div class="player-title" id="playerTitle">未播放</div>
+            <div class="player-artist" id="playerArtist">-</div>
+          </div>
+          <button class="player-like-btn" id="playerLikeBtn">
+            <i class="far fa-heart"></i>
+          </button>
+        </div>
+
+        <div class="player-controls">
+          <div class="player-controls-buttons">
+            <button
+              class="player-control-btn"
+              id="playerShuffleBtn"
+              title="随机播放"
+            >
+              <i class="fas fa-random"></i>
+            </button>
+            <button
+              class="player-control-btn"
+              id="playerPrevBtn"
+              title="上一首"
+            >
+              <i class="fas fa-step-backward"></i>
+            </button>
+            <button
+              class="player-control-btn player-play-btn"
+              id="playerPlayBtn"
+              title="播放"
+            >
+              <i class="fas fa-play"></i>
+            </button>
+            <button
+              class="player-control-btn"
+              id="playerNextBtn"
+              title="下一首"
+            >
+              <i class="fas fa-step-forward"></i>
+            </button>
+            <button
+              class="player-control-btn"
+              id="playerRepeatBtn"
+              title="循环播放"
+            >
+              <i class="fas fa-redo"></i>
+            </button>
+          </div>
+
+          <div class="player-progress">
+            <div class="player-time" id="playerCurrentTime">0:00</div>
+            <div class="player-progress-bar" id="playerProgressBar">
+              <div
+                class="player-progress-filled"
+                id="playerProgressFilled"
+              ></div>
+            </div>
+            <div class="player-time" id="playerDuration">0:00</div>
+          </div>
+        </div>
+
+        <div class="player-lyrics-section">
+          <div class="player-lyrics-container" id="playerLyricsContainer">
+            <div class="player-lyrics-scroll" id="playerLyricsScroll">
+              <div class="player-lyrics-line" id="playerLyricsLine">
+                歌词加载中...
+              </div>
+            </div>
+            <div class="player-lyrics-controls">
+              <button
+                class="player-lyrics-toggle"
+                id="playerLyricsToggle"
+                title="歌词开关"
+              >
+                <i class="fas fa-microphone-alt"></i>
+              </button>
+              <div class="player-lyrics-indicator">
+                <span class="player-lyrics-status" id="playerLyricsStatus"
+                  >歌词关</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="player-options">
+          <div class="player-volume">
+            <button class="player-volume-btn" id="playerVolumeBtn" title="音量">
+              <i class="fas fa-volume-up"></i>
+            </button>
+            <div class="player-volume-slider" id="playerVolumeSlider">
+              <div class="player-volume-filled" id="playerVolumeFilled"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 歌词面板 -->
+      <div class="lyrics-panel" id="lyricsPanel">
+        <div class="lyrics-header">
+          <div class="lyrics-title">
+            <i class="fas fa-microphone-alt"></i>
+            歌词
+          </div>
+          <button class="lyrics-close-btn" id="lyricsCloseBtn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="lyrics-content" id="lyricsContent">
+          <div class="lyric-line">暂无歌词</div>
+          <div class="lyric-line empty"></div>
+          <div class="lyric-line">点击播放音乐以显示歌词</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文件输入 -->
+    <input
+      type="file"
+      id="fileInput"
+      multiple
+      accept="audio/*"
+      style="display: none"
+    />
+
+    <!-- 音频播放器 -->
+    <audio id="audioPlayer" preload="metadata"></audio>
+
+    <!-- 外部库 -->
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+    <script type="text/javascript" src="js/script.js"></script>
+
+    <!-- 清空确认对话框 -->
+    <div class="confirm-dialog" id="clearQueueDialog">
+      <div class="confirm-dialog-content">
+        <div class="confirm-dialog-header">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div class="confirm-dialog-title">确认清空上传队列</div>
+        </div>
+        <div class="confirm-dialog-message" id="clearQueueMessage">
+          这将删除上传队列中的所有文件，此操作不可撤销。 确定要继续吗？
+        </div>
+        <div class="confirm-dialog-actions">
+          <button class="confirm-dialog-btn cancel" id="clearQueueCancel">
+            取消
+          </button>
+          <button class="confirm-dialog-btn confirm" id="clearQueueConfirm">
+            确认清空
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
