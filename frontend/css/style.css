@@ -1270,19 +1270,19 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 20px;
   margin-bottom: 40px;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  align-items: start;
 }
 
 /* 音乐卡片入场动画 */
 @keyframes fadeInUp {
   0% {
     opacity: 0;
-    transform: translateY(30px) scale(0.95) perspective(1000px) rotateX(0deg)
-      rotateY(0deg);
+    transform: translateY(20px) scale(0.98);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1) perspective(1000px) rotateX(0deg)
-      rotateY(0deg);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1291,16 +1291,16 @@ body {
   border-radius: var(--radius-xl);
   padding: var(--spacing-lg);
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(10px);
-  transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
   opacity: 0;
-  transform: translateY(30px) scale(0.95) perspective(1000px) rotateX(0deg)
-    rotateY(0deg);
+  transform: translateY(20px) scale(0.98) translateZ(0);
+  will-change: transform, opacity, width;
+  min-width: 0;
 }
 
 .music-card.fade-in {
@@ -1313,8 +1313,7 @@ body {
     var(--bg-hover) 0%,
     var(--bg-active) 100%
   );
-  transform: translateY(-8px) scale(1.04) perspective(1000px) rotateX(0deg)
-    rotateY(0deg);
+  transform: translateY(-8px) scale(1.04) translateZ(0);
   box-shadow: var(--shadow-hover);
   border-color: rgba(30, 215, 96, 0.2);
 }
@@ -1328,9 +1327,10 @@ body {
     rgba(30, 215, 96, 0.1) 0%,
     rgba(32, 201, 151, 0.05) 100%
   );
-  transform: translateY(-6px) scale(1.02);
+  transform: translateY(-6px) scale(1.02) translateZ(0);
   border-color: rgba(30, 215, 96, 0.3);
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: box-shadow, transform;
 }
 
 .music-cover {
@@ -1342,7 +1342,7 @@ body {
   overflow: hidden;
   position: relative;
   box-shadow: var(--shadow-sm);
-  transition: all var(--transition-base);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   transform-style: preserve-3d;
 }
 
@@ -1350,7 +1350,8 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
 }
 
 .music-card:hover .music-cover {
@@ -1358,7 +1359,7 @@ body {
 }
 
 .music-card:hover .music-cover img {
-  transform: scale(1.12);
+  transform: scale(1.08);
 }
 
 .music-cover-placeholder {
@@ -3384,16 +3385,7 @@ body {
 }
 
 /* 歌曲信息变化时的动画 */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+
 
 .player-info.updated {
   animation: fadeInUp 0.3s ease-out;

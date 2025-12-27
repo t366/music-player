@@ -784,7 +784,7 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     config.NODE_ENV === "production"
       ? "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:"
-      : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://cdnjs.cloudflare.com; media-src 'self' blob:; connect-src 'self' ws://localhost:3000 wss://localhost:3000 https://cdn.jsdelivr.net",
+      : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' https://cdnjs.cloudflare.com; media-src 'self' blob:; connect-src 'self' ws: wss: https://cdn.jsdelivr.net",
   );
   next();
 });
@@ -822,6 +822,17 @@ app.use(
 app.use(express.static("public"));
 
 // ======================== API 路由 ========================
+
+// 健康检查端点
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    service: "cloud-music-backend",
+    version: "2.0.0"
+  });
+});
+
 // 找到 app.get('/api/music', ...) 并替换
 
 app.get("/api/music", async (req, res) => {

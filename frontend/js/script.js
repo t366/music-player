@@ -53,7 +53,7 @@ function handleCoverError(imgElement, title) {
 
 // 应用配置
 const CONFIG = {
-  API_BASE_URL: "http://localhost:3000/api",
+  API_BASE_URL: `${window.location.origin}/api`,
   UPLOAD_MAX_SIZE: 100 * 1024 * 1024, // 100MB
   SUPPORTED_FORMATS: [
     "mp3",
@@ -65,7 +65,7 @@ const CONFIG = {
     "webm",
     "mpeg",
   ],
-  WEBSOCKET_URL: "ws://localhost:3000",
+  WEBSOCKET_URL: window.location.origin.replace('http', 'ws'),
   CACHE_DURATION: 5 * 60 * 1000, // 5分钟缓存
   MAX_RETRIES: 3,
   RETRY_DELAY: 1000,
@@ -123,6 +123,7 @@ const state = {
 
   // 后台播放状态
   backgroundPlaybackEnabled: true,
+  isBackground: false,
   audioContext: null,
   audioSource: null,
   audioContextSuspended: false,
@@ -1580,7 +1581,6 @@ const wsManager = {
       this.setState('connected');
       this.startHeartbeat();
       this.send({ type: "subscribe", channel: "all" });
-      this.send({ type: "get_library" });
     };
 
     this.ws.onmessage = (event) => {
@@ -2463,14 +2463,14 @@ const lazyLoadManager = {
       this.currentIndex + this.batchSize,
       this.currentList.length,
     );
+    const cards = [];
 
     for (let i = this.currentIndex; i < endIndex; i++) {
       const song = this.currentList[i];
       // 调用 ui 的创建卡片方法
       const card = ui.createMusicCard(song);
       fragment.appendChild(card);
-      // 添加fade-in类以显示卡片
-      card.classList.add("fade-in");
+      cards.push(card);
     }
 
     // 在哨兵之前插入（如果哨兵存在）
@@ -2479,6 +2479,13 @@ const lazyLoadManager = {
     } else {
       this.container.appendChild(fragment);
     }
+
+    // 添加交错动画效果
+    cards.forEach((card, index) => {
+      setTimeout(() => {
+        card.classList.add("fade-in");
+      }, index * 50); // 50ms间隔，避免同时触发动画
+    });
 
     console.log(`lazyLoadManager.renderBatch(): 已渲染 ${endIndex - this.currentIndex} 张卡片，当前索引: ${endIndex}`);
     this.currentIndex = endIndex;
@@ -6321,38 +6328,45 @@ const performanceMonitor = {
     const checkInterval = 30000; // 30秒检测间隔，减少检测频率
     const sampleInterval = 1000; // 1000ms采样间隔，减少性能影响
 
-    const checkFPS = () => {
-      // 仅在页面可见且应用不是静默状态时进行检测
+    // 使用requestAnimationFrame更准确地跟踪帧数
+    const trackFrames = () => {
       if (document.visibilityState === "visible" && !state.isBackground) {
         frameCount++;
-        const now = performance.now();
-        const elapsed = now - lastTime;
+      }
+      requestAnimationFrame(trackFrames);
+    };
 
-        if (elapsed >= checkInterval) {
-          const fps = Math.round((frameCount * 1000) / elapsed);
+    const checkFPS = () => {
+      const now = performance.now();
+      const elapsed = now - lastTime;
 
-          // 仅在FPS持续低于25且超过冷却时间才警告（提高阈值）
-          if (fps < 25 && now - lastWarnTime > warnCooldown) {
-            console.warn(`低帧率警告: ${fps} FPS`);
-            
-            // 添加性能建议
-            console.info('性能优化建议:');
-            console.info('1. 关闭不必要的浏览器标签页');
-            console.info('2. 检查是否有扩展程序影响性能');
-            console.info('3. 尝试减小音乐列表大小');
-            console.info('4. 如问题持续，可考虑刷新页面');
-            
-            lastWarnTime = now;
-          }
+      if (elapsed >= checkInterval) {
+        const fps = Math.round((frameCount * 1000) / elapsed);
 
-          frameCount = 0;
-          lastTime = now;
+        // 仅在FPS持续低于10且超过冷却时间才警告（进一步降低误报）
+        if (fps < 10 && now - lastWarnTime > warnCooldown) {
+          console.warn(`低帧率警告: ${fps} FPS`);
+          
+          // 添加性能建议
+          console.info('性能优化建议:');
+          console.info('1. 关闭不必要的浏览器标签页');
+          console.info('2. 检查是否有扩展程序影响性能');
+          console.info('3. 尝试减小音乐列表大小');
+          console.info('4. 如问题持续，可考虑刷新页面');
+          
+          lastWarnTime = now;
         }
+
+        frameCount = 0;
+        lastTime = now;
       }
 
       // 使用更长的采样间隔进一步减少性能影响
       setTimeout(checkFPS, sampleInterval);
     };
+
+    // 启动帧跟踪和FPS检查
+    requestAnimationFrame(trackFrames);
 
     // 初始化检测
     setTimeout(checkFPS, 100);
